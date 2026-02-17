@@ -1,6 +1,11 @@
 local VORPcore = exports.vorp_core:GetCore()
+local selectedDest
+local oldPosX
+local oldPosY
+local oldPosZ
+local town
 
-local webhookUrl = "" -- insert discord webhook URL here
+local webhookUrl = ""
 
 function Log(message)
   local data = {
@@ -11,22 +16,34 @@ function Log(message)
   if statusCode == 200 then
   print ("Message Sent")
   else
-  print("No. Status Code: " .. statusCode)
+  print("Status Code: " .. statusCode)
   end
 end, 'POST', json.encode(data), { ['Content-Type'] = 'application/json'})
 end
 
-
-local destinations = {
-    {x = 3001.54, y = 1384.26, z = 43.91}, -- Annesburg docks
-    {x = -3737.26, y = -2619.7, z = -13.22}, -- Armadillo trainstation
-    {x = -735.13, y = -1227.07, z = 44.78}, -- Blackwater docks
-    {x = -1355.94, y = 2400.12, z = 306.84}, -- Colter
-    {x = 1221.49, y = -1297.34, z = 76.95}, -- Rhodes trainstation
-    {x = 2680.82, y = -1456.32, z = 46.33}, -- St. Denis trainstation
-    {x = -5559.92, y = -2869.81, z = -3.06}, -- Tumbleweed
-    {x = -171.69, y = 628.1, z = 114.08} -- Valentine trainstation
-}
+RegisterNetEvent("emergency:getNearestTown")
+AddEventHandler("emergency:getNearestTown", function(dest, x, y, z)
+  print("dest: " .. json.encode(dest) .. "x: " .. x .. "y:" .. y .. "z: " .. z)
+  selectedDest = dest
+  oldPosX = x
+  oldPosY = y
+  oldPosZ = z
+  if selectedDest.x == 3001.54 then
+    town = "Annesburg"
+  elseif selectedDest.x == -3737.26 then
+    town = "Armadillo"
+  elseif selectedDest.x == -735.13 then
+    town = "Blackwater"
+  elseif selectedDest.x == 1221.49 then
+    town = "Rhodes"
+  elseif selectedDest.x == 2680.82 then
+    town = "St. Denis"
+  elseif selectedDest.x == -5559.92 then
+    town = "Tumbleweed"
+  elseif selectedDest.x == -171.69 then
+    town = "Valentine"
+  end
+end)
     
 local commandTimer = {}
 
@@ -34,21 +51,23 @@ RegisterCommand("emergency", function(source, args, rawCommand)
   local User = VORPcore.getUser(source)
   local Char = User.getUsedCharacter
   local playerName = Char.firstname .. " " .. Char.lastname
-  print(playerName)
   local reason = table.concat(args, " ")
   local minLength = 10
-  local message = string.format("%s triggered an emergency because %s", playerName, reason)
+  TriggerClientEvent("emergency:getDistance", source)
+  Wait(500)
+
+  local message = string.format("%s triggered an emergency because %s. Teleported to %s (%f, %f, %f) from (%f, %f, %f) ", playerName, reason, town, selectedDest.x, selectedDest.y, selectedDest.z, oldPosX, oldPosY, oldPosZ)
 
   local charId = Char.charIdentifier
       if reason and #reason >= minLength then
         Log(message)
-        print(message)
+        -- print(message)
       else
         VORPcore.NotifyTip(source, "[ERROR] Usage of '/emergency' requires a valid reason!                      /emergency [reason]", 7000)
         return
       end
       local currentTime = os.time()
-      local destination = destinations[math.random(#destinations)]
+
        if commandTimer[charId] then
         local timer = os.difftime(currentTime, commandTimer[charId])
           if timer < 900 then
@@ -58,7 +77,7 @@ RegisterCommand("emergency", function(source, args, rawCommand)
         end
 
     commandTimer[charId] = currentTime
-
-    TriggerClientEvent("teleport", source, destination)
+    print("Destination Selected: " .. selectedDest.x .. ", " .. selectedDest.y .. ", " .. selectedDest.z .. ", " .. town)
+    TriggerClientEvent("emergency:teleport", source, selectedDest)
 
 end)
